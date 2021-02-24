@@ -9,11 +9,11 @@ variable "region" {
 }
 
 variable "external_ip" {
-    type = string
-    default = "74.69.167.125/32"
+  type    = string
+  default = "74.69.167.125/32"
 }
 
 variable "base_cidr" {
-    type = string
-    default = "10.0.0.0/16"
+  type    = string
+  default = "10.0.0.0/16"
 }
