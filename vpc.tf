@@ -1,4 +1,4 @@
-resource "aws_vpc" "useast2_docker_example" {
+resource "aws_vpc" "main_vpc" {
   #provider                         = aws.main-account
   assign_generated_ipv6_cidr_block = false
   cidr_block                       = var.base_cidr
@@ -6,7 +6,7 @@ resource "aws_vpc" "useast2_docker_example" {
   enable_dns_support               = true
   instance_tenancy                 = "default"
   tags = {
-    "Name" = "useast2_docker_example"
+    "Name" = "main_vpc"
   }
 }
 
@@ -14,15 +14,15 @@ data "aws_availability_zones" "azs" {
   state = "available"
 }
 
-resource "aws_internet_gateway" "igw-useast2" {
-  vpc_id = aws_vpc.useast2_docker_example.id
+resource "aws_internet_gateway" "igw" {
+  vpc_id = aws_vpc.main_vpc.id
 }
 
 resource "aws_route_table" "internet_route" {
-  vpc_id = aws_vpc.useast2_docker_example.id
+  vpc_id = aws_vpc.main_vpc.id
   route {
     cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.igw-useast2.id
+    gateway_id = aws_internet_gateway.igw.id
   }
   lifecycle {
     ignore_changes = all
@@ -33,7 +33,7 @@ resource "aws_route_table" "internet_route" {
 }
 
 resource "aws_route_table" "private" {
-  vpc_id = aws_vpc.useast2_docker_example.id
+  vpc_id = aws_vpc.main_vpc.id
   route {
       cidr_block = "0.0.0.0/0"
       nat_gateway_id = aws_nat_gateway.nat_gw.id
@@ -45,10 +45,12 @@ resource "aws_route_table" "private" {
 }
 
 resource "aws_main_route_table_association" "set-master-default-rt-assoc" {
-  vpc_id         = aws_vpc.useast2_docker_example.id
+  vpc_id         = aws_vpc.main_vpc.id
   route_table_id = aws_route_table.internet_route.id
 }
 
+#TODO
+#refactor these to use local variables, iterate through
 resource "aws_route_table_association" "private1" {
   subnet_id      = aws_subnet.private_subnet_1.id
   route_table_id = aws_route_table.private.id
@@ -61,45 +63,46 @@ resource "aws_route_table_association" "private2" {
 
 #need a nat gateway, route table, and then associate private subnets with the route table.
 resource "aws_eip" "nat_gw_eip" {
-  depends_on = [aws_internet_gateway.igw-useast2]
+  depends_on = [aws_internet_gateway.igw]
 }
 
 resource "aws_nat_gateway" "nat_gw" {
   allocation_id = aws_eip.nat_gw_eip.id
   subnet_id     = aws_subnet.public_subnet_1.id
-  depends_on    = [aws_internet_gateway.igw-useast2]
+  depends_on    = [aws_internet_gateway.igw]
 }
 
-
+#TODO
+#refactor these to be locals, iterate through.
 resource "aws_subnet" "public_subnet_1" {
   availability_zone = element(data.aws_availability_zones.azs.names, 0)
-  vpc_id            = aws_vpc.useast2_docker_example.id
+  vpc_id            = aws_vpc.main_vpc.id
   cidr_block        = cidrsubnet(var.base_cidr, 8, 1)
 }
 
 
 resource "aws_subnet" "public_subnet_2" {
   availability_zone = element(data.aws_availability_zones.azs.names, 1)
-  vpc_id            = aws_vpc.useast2_docker_example.id
+  vpc_id            = aws_vpc.main_vpc.id
   cidr_block        = cidrsubnet(var.base_cidr, 8, 2)
 }
 
 resource "aws_subnet" "private_subnet_1" {
   availability_zone = element(data.aws_availability_zones.azs.names, 0)
-  vpc_id            = aws_vpc.useast2_docker_example.id
+  vpc_id            = aws_vpc.main_vpc.id
   cidr_block        = cidrsubnet(var.base_cidr, 8, 3)
 }
 
 
 resource "aws_subnet" "private_subnet_2" {
   availability_zone = element(data.aws_availability_zones.azs.names, 1)
-  vpc_id            = aws_vpc.useast2_docker_example.id
+  vpc_id            = aws_vpc.main_vpc.id
   cidr_block        = cidrsubnet(var.base_cidr, 8, 4)
 }
 
 
 output "vpc_id" {
-  value = aws_vpc.useast2_docker_example.id
+  value = aws_vpc.main_vpc.id
 }
 
 output "public_subnet_1_id" {
