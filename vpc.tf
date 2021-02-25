@@ -51,14 +51,21 @@ resource "aws_main_route_table_association" "set-master-default-rt-assoc" {
 
 #TODO
 #refactor these to use local variables, iterate through
-resource "aws_route_table_association" "private1" {
-  subnet_id      = aws_subnet.private_subnet_1.id
-  route_table_id = aws_route_table.private.id
-}
+#resource "aws_route_table_association" "private1" {
+#  subnet_id      = aws_subnet.private_subnet_1.id
+#  route_table_id = aws_route_table.private.id
+#}
 
-resource "aws_route_table_association" "private2" {
-  subnet_id      = aws_subnet.private_subnet_2.id
-  route_table_id = aws_route_table.private.id
+#resource "aws_route_table_association" "private2" {
+#  subnet_id      = aws_subnet.private_subnet_2.id
+#  route_table_id = aws_route_table.private.id
+#}
+#TODO
+#make count dynamic 
+resource "aws_route_table_association" "private_route" {
+    count = 2
+    subnet_id = element(aws_subnet.private_subnet.*.id, count.index)
+    route_table_id = aws_route_table.private.id
 }
 
 #need a nat gateway, route table, and then associate private subnets with the route table.
@@ -66,26 +73,13 @@ resource "aws_eip" "nat_gw_eip" {
   depends_on = [aws_internet_gateway.igw]
 }
 
+#TODO
+#best practice would be to have a nat gateway in each public subnet, for now will just route through one
 resource "aws_nat_gateway" "nat_gw" {
   allocation_id = aws_eip.nat_gw_eip.id
   subnet_id     = aws_subnet.public_subnet.0.id
   depends_on    = [aws_internet_gateway.igw]
 }
-
-#TODO
-#refactor these to be locals, iterate through.
-#resource "aws_subnet" "public_subnet_1" {
-#  availability_zone = element(data.aws_availability_zones.azs.names, 0)
-#  vpc_id            = aws_vpc.main_vpc.id
-#  cidr_block        = cidrsubnet(var.base_cidr, 8, 1)
-#}
-
-
-#resource "aws_subnet" "public_subnet_2" {
-#  availability_zone = element(data.aws_availability_zones.azs.names, 1)
-#  vpc_id            = aws_vpc.main_vpc.id
-#  cidr_block        = cidrsubnet(var.base_cidr, 8, 2)
-#}
 
 #TODO
 #change count to be dynamic, will want to adjust this via a variable
@@ -97,18 +91,25 @@ resource "aws_subnet" "public_subnet" {
     map_public_ip_on_launch = true
 }
 
-resource "aws_subnet" "private_subnet_1" {
-  availability_zone = element(data.aws_availability_zones.azs.names, 0)
-  vpc_id            = aws_vpc.main_vpc.id
-  cidr_block        = cidrsubnet(var.base_cidr, 8, 3)
+resource "aws_subnet" "private_subnet" {
+    count = 2
+    vpc_id = aws_vpc.main_vpc.id
+    cidr_block = cidrsubnet(var.base_cidr, 8, count.index + 3)
+    availability_zone = element(data.aws_availability_zones.azs.names, count.index)
 }
 
+#resource "aws_subnet" "private_subnet_1" {
+#  availability_zone = element(data.aws_availability_zones.azs.names, 0)
+#  vpc_id            = aws_vpc.main_vpc.id
+#  cidr_block        = cidrsubnet(var.base_cidr, 8, 3)
+#}
 
-resource "aws_subnet" "private_subnet_2" {
-  availability_zone = element(data.aws_availability_zones.azs.names, 1)
-  vpc_id            = aws_vpc.main_vpc.id
-  cidr_block        = cidrsubnet(var.base_cidr, 8, 4)
-}
+
+#resource "aws_subnet" "private_subnet_2" {
+#  availability_zone = element(data.aws_availability_zones.azs.names, 1)
+#  vpc_id            = aws_vpc.main_vpc.id
+#  cidr_block        = cidrsubnet(var.base_cidr, 8, 4)
+#}
 
 
 output "vpc_id" {
@@ -118,19 +119,16 @@ output "vpc_id" {
 output "public_subnets" {
     value = "${aws_subnet.public_subnet.*.id}"
 }
-#output "public_subnet_1_id" {
-#  value = aws_subnet.public_subnet_1.id
-#}
 
-#output "public_subnet_2_id" {
-#  value = aws_subnet.public_subnet_2.id
-#}
-
-output "private_subnet_1_id" {
-  value = aws_subnet.private_subnet_1.id
+output "private_subnets" {
+    value = "${aws_subnet.private_subnet.*.id}"
 }
 
-output "private_subnet_2_id" {
-  value = aws_subnet.private_subnet_2.id
-}
+#output "private_subnet_1_id" {
+#  value = aws_subnet.private_subnet_1.id
+#}
+
+#output "private_subnet_2_id" {
+#  value = aws_subnet.private_subnet_2.id
+#}
 
