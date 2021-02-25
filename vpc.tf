@@ -68,23 +68,33 @@ resource "aws_eip" "nat_gw_eip" {
 
 resource "aws_nat_gateway" "nat_gw" {
   allocation_id = aws_eip.nat_gw_eip.id
-  subnet_id     = aws_subnet.public_subnet_1.id
+  subnet_id     = aws_subnet.public_subnet.0.id
   depends_on    = [aws_internet_gateway.igw]
 }
 
 #TODO
 #refactor these to be locals, iterate through.
-resource "aws_subnet" "public_subnet_1" {
-  availability_zone = element(data.aws_availability_zones.azs.names, 0)
-  vpc_id            = aws_vpc.main_vpc.id
-  cidr_block        = cidrsubnet(var.base_cidr, 8, 1)
-}
+#resource "aws_subnet" "public_subnet_1" {
+#  availability_zone = element(data.aws_availability_zones.azs.names, 0)
+#  vpc_id            = aws_vpc.main_vpc.id
+#  cidr_block        = cidrsubnet(var.base_cidr, 8, 1)
+#}
 
 
-resource "aws_subnet" "public_subnet_2" {
-  availability_zone = element(data.aws_availability_zones.azs.names, 1)
-  vpc_id            = aws_vpc.main_vpc.id
-  cidr_block        = cidrsubnet(var.base_cidr, 8, 2)
+#resource "aws_subnet" "public_subnet_2" {
+#  availability_zone = element(data.aws_availability_zones.azs.names, 1)
+#  vpc_id            = aws_vpc.main_vpc.id
+#  cidr_block        = cidrsubnet(var.base_cidr, 8, 2)
+#}
+
+#TODO
+#change count to be dynamic, will want to adjust this via a variable
+resource "aws_subnet" "public_subnet" {
+    count = 2
+    vpc_id = aws_vpc.main_vpc.id
+    cidr_block = cidrsubnet(var.base_cidr, 8, count.index + 1)
+    availability_zone = element(data.aws_availability_zones.azs.names, count.index)
+    map_public_ip_on_launch = true
 }
 
 resource "aws_subnet" "private_subnet_1" {
@@ -105,13 +115,16 @@ output "vpc_id" {
   value = aws_vpc.main_vpc.id
 }
 
-output "public_subnet_1_id" {
-  value = aws_subnet.public_subnet_1.id
+output "public_subnets" {
+    value = "${aws_subnet.public_subnet.*.id}"
 }
+#output "public_subnet_1_id" {
+#  value = aws_subnet.public_subnet_1.id
+#}
 
-output "public_subnet_2_id" {
-  value = aws_subnet.public_subnet_2.id
-}
+#output "public_subnet_2_id" {
+#  value = aws_subnet.public_subnet_2.id
+#}
 
 output "private_subnet_1_id" {
   value = aws_subnet.private_subnet_1.id
